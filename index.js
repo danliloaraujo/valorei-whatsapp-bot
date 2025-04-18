@@ -1,33 +1,54 @@
-
 const express = require('express');
+const axios = require('axios');
 const bodyParser = require('body-parser');
+require('dotenv').config();
+
 const app = express();
 const PORT = process.env.PORT || 10000;
 
 app.use(bodyParser.json());
 
-// Rota de verificação do Webhook da Meta
-app.get('/webhook', (req, res) => {
-  const VERIFY_TOKEN = 'valorei-wh-token';
+app.get('/', (req, res) => {
+  res.send('Servidor de teste rodando na porta ' + PORT);
+});
 
-  const mode = req.query['hub.mode'];
-  const token = req.query['hub.verify_token'];
-  const challenge = req.query['hub.challenge'];
+app.post('/webhook', async (req, res) => {
+  const body = req.body;
 
-  if (mode === 'subscribe' && token === VERIFY_TOKEN) {
-    console.log('[META] Verificação recebida e aprovada!');
-    res.status(200).send(challenge);
+  if (body.object) {
+    const entry = body.entry?.[0];
+    const changes = entry?.changes?.[0];
+    const message = changes?.value?.messages?.[0];
+
+    if (message && message.type === 'text') {
+      const from = message.from;
+      const text = message.text.body;
+
+      console.log(`Mensagem recebida de ${from}: ${text}`);
+
+      await axios({
+        method: 'POST',
+        url: `https://graph.facebook.com/v18.0/${process.env.PHONE_NUMBER_ID}/messages`,
+        headers: {
+          'Authorization': `Bearer ${process.env.WHATSAPP_TOKEN}`,
+          'Content-Type': 'application/json'
+        },
+        data: {
+          messaging_product: 'whatsapp',
+          to: from,
+          text: {
+            body: 'Olá! Recebemos sua mensagem 🚀'
+          }
+        }
+      });
+    }
+
+    res.sendStatus(200);
   } else {
-    console.log('[META] Verificação falhou');
-    res.sendStatus(403);
+    res.sendStatus(404);
   }
 });
 
-app.post('/webhook', (req, res) => {
-  console.log('[META] Webhook recebido:', JSON.stringify(req.body, null, 2));
-  res.sendStatus(200);
-});
-
 app.listen(PORT, () => {
-  console.log(`Servidor rodando na porta ${PORT}`);
+  console.log('Servidor rodando na porta ' + PORT);
 });
