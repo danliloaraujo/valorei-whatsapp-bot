@@ -2,6 +2,7 @@ const express = require('express');
 const axios = require('axios');
 const bodyParser = require('body-parser');
 require('dotenv').config();
+const respostas = require('./respostas');
 
 const app = express();
 const PORT = process.env.PORT || 10000;
@@ -9,7 +10,7 @@ const PORT = process.env.PORT || 10000;
 app.use(bodyParser.json());
 
 app.get('/', (req, res) => {
-  res.send('Servidor de teste rodando na porta ' + PORT);
+  res.send('Servidor rodando na porta ' + PORT);
 });
 
 app.post('/webhook', async (req, res) => {
@@ -22,9 +23,21 @@ app.post('/webhook', async (req, res) => {
 
     if (message && message.type === 'text') {
       const from = message.from;
-      const text = message.text.body;
+      const text = message.text.body.toLowerCase();
 
-      console.log(`Mensagem recebida de ${from}: ${text}`);
+      let resposta = '';
+
+      if (text.includes('vender') || text.includes('marketing')) {
+        resposta = respostas.business;
+      } else if (text.includes('contratar') || text.includes('dev')) {
+        resposta = respostas.talents;
+      } else if (text.includes('alocar') || text.includes('terceirizar')) {
+        resposta = respostas.professionals;
+      } else if (text.includes('oi') || text.includes('olá') || text.includes('bom dia')) {
+        resposta = respostas.saudacao;
+      } else {
+        resposta = respostas.fallback;
+      }
 
       await axios({
         method: 'POST',
@@ -36,9 +49,7 @@ app.post('/webhook', async (req, res) => {
         data: {
           messaging_product: 'whatsapp',
           to: from,
-          text: {
-            body: 'Olá! Recebemos sua mensagem 🚀'
-          }
+          text: { body: resposta }
         }
       });
     }
